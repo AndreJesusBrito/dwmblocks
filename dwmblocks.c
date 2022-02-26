@@ -1,5 +1,6 @@
 #include<stdlib.h>
 #include<stdio.h>
+#include<limits.h>
 #include<string.h>
 #include<unistd.h>
 #include<signal.h>
@@ -33,6 +34,8 @@ void getsigcmds(unsigned int signal);
 void setupsignals();
 void sighandler(int signum);
 int getstatus(char *str, char *last);
+int gcd(int x, int y);
+int getloopstep();
 void statusloop();
 void termhandler();
 void pstdout();
@@ -155,18 +158,55 @@ void pstdout()
 	fflush(stdout);
 }
 
+int gcd(int x, int y)
+{
+	while(x != y) {
+		if (x > y)
+			x -= y;
+		else
+			y -= x;
+	}
+	return x;
+}
+
+int getloopstep()
+{
+	int step = INT_MAX;
+	unsigned int i = 0;
+	const Block* current;
+
+	// find first block with an interval
+	for (; i < LENGTH(blocks); i++) {
+		current = blocks + i;
+		if (current->interval > 0) {
+			step = current->interval;
+			break;
+		}
+	}
+
+	// update step to work for the rest of the blocks
+	for (; i < LENGTH(blocks); i++) {
+		current = blocks + i;
+		if (current->interval > 0)
+			step = gcd(step, current->interval);
+	}
+
+	return step;
+}
 
 void statusloop()
 {
 	setupsignals();
 	int i = 0;
+	int loopstep = getloopstep();
 	getcmds(-1);
 	while (1) {
-		getcmds(i++);
+		i += loopstep;
+		getcmds(i);
 		writestatus();
 		if (!statusContinue)
 			break;
-		sleep(1.0);
+		sleep(loopstep);
 	}
 }
 
